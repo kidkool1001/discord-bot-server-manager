@@ -2,8 +2,11 @@
 This is a discord bot that enables users in a discord server to easily start and stop various game servers such as minecraft and terraria.
 
 ORIGINAL REPO : https://github.com/Phreakester/discord-bot-server-manager
-Big thanks to @Phreakester 
+
+Big thanks to @Phreakester
+ 
 THIS IS WINDOWS ONLY IF YOU ARE LOOKING FOR LINUX VER GO HERE
+
 https://github.com/Phreakester/discord-bot-server-manager
 
 Requirements:
