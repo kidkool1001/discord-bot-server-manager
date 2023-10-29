@@ -52,8 +52,6 @@ async def on_ready():
     print(f'Logged in as {client.user}')
     await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="/serverhelp"))
     restart_active.start()
-    await asyncio.sleep(10)
-    remind.start()
     
 async def game_starters(ctx: discord.AutocompleteContext):
     active_games = []
