@@ -1,8 +1,10 @@
 {
-  "bot_token" : "honestlywhentheygavelalalandtheoscaronaccidenttheyshouldajustgonewithit",
-  "public_ip" : "12.345.678.912",
-  "game_library" : {"minecraft":[25565, "True", "stop"], 
-    "terraria":[7777, "", "exit"], 
-    "mc_modded":[25575, "True", "stop"]
-  }
+  "bot_token" : "MZ1yGvKTjE0rY0cV8i47CjAa.uRHQPq.Xb1Mk2nEhe-4iUcrGOuegj57zMC",
+  "public_ip" : "123.123.123.123",
+  "game_library" : {"No One Survived":[7777, "WRSHServer.exe", "", "^c"],
+  "Zomboid":[16261, "Zomboid", "", "quit"],
+  "test":[1234, "test", "", "c"]
+  
+  
+	  }
 }

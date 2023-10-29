@@ -1,22 +1,27 @@
 import discord
+from discord.ext import tasks
 from discord.ext import commands
 import subprocess
+import asyncio
 import json
+from pywinauto import application
 import server_commands as server_command
 #Defines discord client, can change command prefix here
-client = commands.Bot(command_prefix = '$')
+intents = discord.Intents.all()
+client = discord.Bot(help_command=commands.DefaultHelpCommand(), intents=intents)
 #Loads user config and defines variabels
 with open('bot_config.json') as f:
     config = json.load(f)
 
 class Game:
-    def __init__(self, title, port, query, exit_command):
+    def __init__(self, title, port, window, query, exit_command):
         self.port = port
         self.title = title
+        self.window = window
         self.active = False
         self.has_query = query
         self.exit_command = exit_command
-        self.start_script = './' + self.title + '.sh'
+        self.start_script = '.\\servers\\' + self.title + '.lnk'
     
     def start_server(self):
         print(f'Starting {self.title} server')
@@ -29,12 +34,13 @@ class Game:
 game_library = {}
 for title, info in config['game_library'].items():
     port = info [0]
-    if info[1]:
+    window = info [1]
+    if info[2]:
         query_enabled = True
     else:
         query_enabled = False
-    exit_command = info[2]
-    game_library[title] = Game(title, port, query_enabled, exit_command)
+    exit_command = info[3]
+    game_library[title] = Game(title, port, window, query_enabled, exit_command)
 
 bot_token = config['bot_token']
 public_ip = config['public_ip']
@@ -44,95 +50,88 @@ public_ip = config['public_ip']
 async def on_ready():
     """Sends ready message and sets listening status"""
     print(f'Logged in as {client.user}')
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="$help"))
-
-@client.command()
-async def start(ctx, game_title):
-    """Starts server for the given game"""
-    try:
-        game = game_library[game_title]
-        if game.active:
-            await ctx.send(f'{game.title} server already running')
-        else:
-            await ctx.send(f'Starting {game.title} server')
-            game.start_server()
-            game.active = True
-    except KeyError:
-        await ctx.send(f'{game_title} is not supported or mistyped')
-
-@client.command()
-async def stop(ctx, game_title):
-    """Stops currently running server if there is one running"""
-    try:
-        game = game_library[game_title]
-        if game.active:
-            await ctx.send(f'Stopping {game.title} server')
-            game.stop_server()
-            game.active = False
-        else:
-            await ctx.send(f'{game.title} is not currently running')
-    except KeyError:
-        await ctx.send(f'{game_title} is not supported or mistyped')
-
-@client.command()
-async def hello(ctx):
-    """Responds with a friendly greeting"""
-    await ctx.send('Hello!')
-
-@client.command()
-async def library(ctx):
-    """Lists available games"""
-    output = 'Available games: '
-    for game_title in game_library:
-        output = output + game_title + ', '
-    await ctx.send(output)
-
-@client.command()
-async def status(ctx):
-    """Checks the status of the currently running servers"""
-    output = ''
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="/serverhelp"))
+    restart_active.start()
+    await asyncio.sleep(10)
+    remind.start()
+    
+async def game_starters(ctx: discord.AutocompleteContext):
+    active_games = []
     for title, game in game_library.items():
-        if game.active:
-            status = '**online**'
-            if game.has_query:
-                await ctx.send(server_command.query_server(game))
-        else:
-            status = '**offline**'
-        output = output + f'{game.title} server is currently {status} \n'
-    await ctx.send(output)
-    # if server_status:
-    #     if current_game in ['minecraft', 'mc_modded']:
-    #         await ctx.send(server_command.query_server(current_game, public_ip, current_game_port))
-    #     else:
-    #         await ctx.send(f'There is currently a {current_game} server running')
-    # else:
-    #     await ctx.send('No active server running')
-
-@client.command()
-async def ip(ctx):
-    """Returns IP and port info for running servers"""
-    output = ''
-    for title, game in game_library.items():
-        if game.active:
-            output = output + f'{game.title} : {public_ip} : {game.port}\n'
-    if output:
-        await ctx.send(output)
-    else:
-        await ctx.send('No server running to get IP of')
-        
-
-@client.command()
-async def exit(ctx):
-    """Exits the bot"""
+            active_games.append(game.title)
+    return active_games
+    
+async def game_stoppers(ctx: discord.AutocompleteContext):
     active_games = []
     for title, game in game_library.items():
         if game.active:
             active_games.append(game.title)
-    if active_games:
-        await ctx.send(f'Cannot exit as {active_games} server(s) are running')
-    else:
-        await ctx.send('Goodbye!')
-        await client.close()
-        print('Bot exited')
+    return active_games
+   
+@tasks.loop(seconds=10)  
+async def restart_active():
+    try:
+        for title, game in game_library.items():
+            if game.active:
+                app = application.Application()
+                app.connect(title=game.window)
+      #DEBUG    print(f' {game.title} Server is running...')
+            else:
+                await asyncio.sleep(10)
+    except:
+            print(f'ERROR! {game.title} Server crashed restarting...')
+            restart_error()
+            game.start_server()
+    
+@client.command(name="start", description="Starts server for the given game")
+async def start(ctx: discord.ApplicationContext, game_title: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(game_starters))):
+    try:
+        game = game_library[game_title]
+        if game.active:
+            await ctx.respond(f'ERROR! {game.title} server already running')
+        else:
+            await ctx.respond(f'Starting {game.title} server')
+            game.start_server()
+            game.active = True
+    except KeyError:
+        await ctx.respond(f'ERROR! {game_title} is not supported or mistyped')
+
+@client.command(description="Stops currently running server if there is one running")
+async def stop(ctx: discord.ApplicationContext, game_title: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(game_stoppers))):
+    try:
+        game = game_library[game_title]
+        if game.active:
+            await ctx.respond(f'Stopping {game.title} Server!')
+            game.stop_server()
+            game.active = False
+        else:
+            await ctx.respond(f'ERROR! {game.title} is not currently running')
+    except KeyError:
+        await ctx.respond(f'ERROR! {game_title} is not supported or mistyped')
+
+@client.command(description="How to use bot")
+async def serverhelp(ctx: discord.ApplicationContext):
+        help_embed = discord.Embed(title="Server Manager Help")
+        command_names_list = [x.name for x in client.commands]
+        game_names_list = [game.title for title, game in game_library.items]
+        help_embed.add_field(name="Available Commands:", value="\n".join(x.name for i, x in enumerate(client.commands)), inline=False)
+        help_embed.add_field(name="How to use", value="Type `/start or /stop <servername> to start or stop a server.", inline=False)
+        await ctx.send(embed=help_embed)
+
+
+@client.command(description="Checks the status of the currently running servers")
+async def status(ctx):
+    output = ''
+    for title, game in game_library.items():
+        if game.active:
+            app = application.Application()
+            app.connect(title=game.window)
+            status = '**online**'
+            if game.has_query:
+                await ctx.respond(server_command.query_server(game))
+        else:
+            status = '**offline**'
+        output = output + f'{game.title} server is currently {status} \n'
+    await ctx.respond(output)
 
 client.run(bot_token)

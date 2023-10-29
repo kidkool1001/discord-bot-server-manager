@@ -1,8 +1,7 @@
 {
-  "bot_token" : "",
-  "public_ip" : "",
-  "game_library" : {"minecraft":[], 
-    "terraria":[], 
-    "mc_modded":[]
+  "bot_token" : "bottokenhere",
+  "public_ip" : "server.ipaddress.here",
+  "game_library" : {"Game1":[port, "Window Title", "LEAVE THIS BLANK", "Exit Key"], 
+    "Game2":[1234, "WindowName", "", "^c"], 
   }
 }
